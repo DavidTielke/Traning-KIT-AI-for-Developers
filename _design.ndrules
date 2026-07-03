@@ -1,0 +1,492 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Queries>
+<!--
+  NDepend rule file generated from harness/_design.md (Backend Design Contract).
+  Attach via NDepend Project Properties > Rules > Rule Files, analyzing Backend.dll.
+
+  NOT statically enforceable (review manually / via harness/_design.md):
+  HTTP status-code mapping, CreatedAtAction usage, AsNoTracking/OrderBy(Id) in reads,
+  anonymous { message } error bodies, lowercase route strings + "{id:int}" constraints,
+  DTO limits == EF limits, seed data presence, statement order in configurations,
+  DeleteBehavior.Restrict, "one request type for create+update", migration discipline,
+  string.Empty property defaults, Id-first property order, Response carrying {Y}Name,
+  absence of try/catch, Program.cs wiring (CORS policy, Swagger dev-only, auto-migration).
+
+  CQLinq pitfalls (learned the hard way - do not regress):
+  - IMethod.Name includes the parameter signature ("get_Id()", "UpdatePerson(Int32,PersonRequest)").
+    Always compare against IMethod.SimpleName ("get_Id", "UpdatePerson").
+  - IType.Methods does NOT contain constructors; use IType.Constructors for ctor checks.
+  - Sequence result columns must be code elements (IMethod/IType/...), never strings.
+  - Rule syntax errors do not fail the analysis; they show up as Status="Error" in the report.
+-->
+
+ <Group Name="1. Architecture and Layering" Active="True" ShownInReport="False">
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>ARCH01: No service/repository/manager layers</Name>
+// <Description>2-tier design: Controller -> AppDbContext -> SQLite. No service, repository, mediator, UoW, helper or factory abstractions.</Description>
+warnif count > 0
+from t in Application.Types
+where !t.IsGeneratedByCompiler
+   && !t.ParentNamespace.Name.StartsWith("Backend.Migrations")
+   && t.NameLike(@"(Service|Repository|Manager|Handler|Mediator|UnitOfWork|Factory|Provider|Helper|Utils?)$")
+select new { t, t.ParentNamespace }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>ARCH02: No interfaces in application code</Name>
+// <Description>No interfaces for application classes; abstractions come only from the framework.</Description>
+warnif count > 0
+from t in Application.Types
+where t.IsInterface && !t.IsGeneratedByCompiler
+select t
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>ARCH03: Only the defined namespaces are allowed</Name>
+// <Description>Namespaces mirror folders: Controllers, Data, Data.Configurations, Dtos, Models (+ Migrations, global for Program).</Description>
+warnif count > 0
+from n in Application.Namespaces
+where !(new[] {
+    "",
+    "Backend",
+    "Backend.Controllers",
+    "Backend.Data",
+    "Backend.Data.Configurations",
+    "Backend.Dtos",
+    "Backend.Models",
+    "Backend.Migrations"
+  }).Contains(n.Name)
+select n
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>ARCH04: AutoMapper must not be referenced</Name>
+// <Description>Mapping entity/DTO is written by hand in controllers.</Description>
+warnif count > 0
+from a in Application.Assemblies
+where a.AssembliesUsed.Any(asm => asm.Name.ToLower().Contains("automapper"))
+select a
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>ARCH05: Entities must not use other Backend layers</Name>
+// <Description>Backend.Models is the lowest layer: plain POCOs referencing only each other and System types.</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Models" && !t.IsGeneratedByCompiler
+let bad = t.TypesUsed.Where(u => u.ParentNamespace != null
+   && u.ParentNamespace.Name.StartsWith("Backend")
+   && u.ParentNamespace.Name != "Backend.Models")
+where bad.Any()
+select new { t, bad }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>ARCH06: DTOs must not use other Backend layers</Name>
+// <Description>Backend.Dtos is self-contained (only DataAnnotations + System). Never reference entities from DTOs.</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Dtos" && !t.IsGeneratedByCompiler
+let bad = t.TypesUsed.Where(u => u.ParentNamespace != null
+   && u.ParentNamespace.Name.StartsWith("Backend")
+   && u.ParentNamespace.Name != "Backend.Dtos")
+where bad.Any()
+select new { t, bad }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>ARCH07: Data layer must not use Controllers or Dtos</Name>
+// <Description>Backend.Data may use Backend.Models but never the web layer or DTOs.</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name.StartsWith("Backend.Data") && !t.IsGeneratedByCompiler
+let bad = t.TypesUsed.Where(u => u.ParentNamespace != null
+   && (u.ParentNamespace.Name == "Backend.Controllers" || u.ParentNamespace.Name == "Backend.Dtos"))
+where bad.Any()
+select new { t, bad }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>ARCH08: Entities must not leak outside Data and Controllers</Name>
+// <Description>Entities never leave the controller; only DTOs cross the API boundary.</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Models" && !t.IsGeneratedByCompiler
+let badUsers = t.TypesUsingMe.Where(u => u.ParentNamespace != null
+   && !u.ParentNamespace.Name.StartsWith("Backend.Data")
+   && u.ParentNamespace.Name != "Backend.Controllers"
+   && u.ParentNamespace.Name != "Backend.Models"
+   && u.ParentNamespace.Name != "Backend.Migrations")
+where badUsers.Any()
+select new { t, badUsers }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>ARCH09: No custom middleware, filters, or exception handlers</Name>
+// <Description>Cross-cutting behavior is limited to what Program.cs already wires up. No IMiddleware, MVC filters, or exception-handler types.</Description>
+warnif count > 0
+from t in Application.Types
+where !t.IsGeneratedByCompiler
+where t.Implement("Microsoft.AspNetCore.Http.IMiddleware".AllowNoMatch())
+   || t.Implement("Microsoft.AspNetCore.Mvc.Filters.IActionFilter".AllowNoMatch())
+   || t.Implement("Microsoft.AspNetCore.Mvc.Filters.IAsyncActionFilter".AllowNoMatch())
+   || t.Implement("Microsoft.AspNetCore.Mvc.Filters.IExceptionFilter".AllowNoMatch())
+   || t.Implement("Microsoft.AspNetCore.Mvc.Filters.IAsyncExceptionFilter".AllowNoMatch())
+   || t.Implement("Microsoft.AspNetCore.Diagnostics.IExceptionHandler".AllowNoMatch())
+   || t.DeriveFrom("Microsoft.AspNetCore.Mvc.Filters.ExceptionFilterAttribute".AllowNoMatch())
+   || t.DeriveFrom("Microsoft.AspNetCore.Mvc.Filters.ActionFilterAttribute".AllowNoMatch())
+select t
+]]></Query>
+
+ </Group>
+
+ <Group Name="2. Entities (Backend.Models)" Active="True" ShownInReport="False">
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>ENT01: Every entity has an int Id property</Name>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Models" && t.IsClass && !t.IsGeneratedByCompiler
+where !t.Methods.Any(m => m.SimpleName == "get_Id" && m.ReturnType != null && m.ReturnType.Name == "Int32")
+select t
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>ENT02: Entities are POCOs without behavior</Name>
+// <Description>No methods, no computed logic, no parameterized constructors - only auto-properties.</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Models" && t.IsClass && !t.IsGeneratedByCompiler
+let behavior = t.Methods.Where(m => !m.IsGeneratedByCompiler
+   && !m.IsPropertyGetter && !m.IsPropertySetter)
+let badCtors = t.Constructors.Where(c => !c.IsStatic && c.NbParameters > 0)
+where behavior.Any() || badCtors.Any()
+select new { t, behavior, badCtors }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>ENT03: Entities carry no mapping/validation attributes</Name>
+// <Description>Mapping lives exclusively in IEntityTypeConfiguration classes (Fluent API); entities must not touch DataAnnotations or EF Core types.</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Models" && !t.IsGeneratedByCompiler
+let bad = t.TypesUsed.Where(u => u.ParentNamespace != null
+   && (u.ParentNamespace.Name.StartsWith("System.ComponentModel.DataAnnotations")
+       || u.ParentNamespace.Name.StartsWith("Microsoft.EntityFrameworkCore")))
+where bad.Any()
+select new { t, bad }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="False"><![CDATA[
+// <Name>ENT04: Entity properties are public get/set</Name>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Models" && t.IsClass && !t.IsGeneratedByCompiler
+let bad = t.Methods.Where(g => g.IsPropertyGetter
+   && (!g.IsPublic || !t.Methods.Any(s => s.IsPropertySetter && s.IsPublic && s.SimpleName == "set_" + g.SimpleName.Substring(4))))
+where bad.Any()
+select new { t, bad }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>ENT05: Navigation property requires int {Y}Id FK property</Name>
+// <Description>Dependent side: 'public {Y} {Y} { get; set; } = null!;' must be paired with 'public int {Y}Id { get; set; }'.</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Models" && t.IsClass && !t.IsGeneratedByCompiler
+let navs = t.Methods.Where(m => m.IsPropertyGetter && m.ReturnType != null
+   && m.ReturnType.ParentNamespace != null
+   && m.ReturnType.ParentNamespace.Name == "Backend.Models"
+   && m.ReturnType.IsClass)
+let missing = navs.Where(n => !t.Methods.Any(g =>
+   g.SimpleName == "get_" + n.SimpleName.Substring(4) + "Id"
+   && g.ReturnType != null && g.ReturnType.Name == "Int32"))
+where missing.Any()
+select new { t, missing }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="False"><![CDATA[
+// <Name>ENT06: Principal side exposes the inverse collection</Name>
+// <Description>If dependent X navigates to Y, then Y must expose 'ICollection<X> {Xs}'. Non-critical: pluralization is heuristic (y -> ies, else + s).</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Models" && t.IsClass && !t.IsGeneratedByCompiler
+let plural = t.Name.EndsWith("y") ? t.Name.Substring(0, t.Name.Length - 1) + "ies" : t.Name + "s"
+let principals = t.Methods
+   .Where(m => m.IsPropertyGetter && m.ReturnType != null
+      && m.ReturnType.ParentNamespace != null
+      && m.ReturnType.ParentNamespace.Name == "Backend.Models"
+      && m.ReturnType.IsClass)
+   .Select(m => m.ReturnType)
+let missing = principals.Where(p => !p.Methods.Any(g => g.SimpleName == "get_" + plural))
+where missing.Any()
+select new { t, missing }
+]]></Query>
+
+ </Group>
+
+ <Group Name="3. DTOs (Backend.Dtos)" Active="True" ShownInReport="False">
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>DTO01: Dtos namespace contains only *Request / *Response types</Name>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Dtos" && !t.IsGeneratedByCompiler
+where !t.NameLike(@"(Request|Response)$")
+select t
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>DTO02: Response DTOs are positional records</Name>
+// <Description>Detected via the compiler-generated EqualityContract property that every C# record has.</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Dtos" && t.NameLike(@"Response$") && !t.IsGeneratedByCompiler
+where !t.Methods.Any(m => m.SimpleName == "get_EqualityContract")
+select t
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>DTO03: Request DTOs must not expose an Id</Name>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Dtos" && t.NameLike(@"Request$") && !t.IsGeneratedByCompiler
+where t.Methods.Any(m => m.SimpleName == "get_Id")
+select t
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>DTO04: Request DTOs use DataAnnotations validation</Name>
+// <Description>DataAnnotations on requests are the single source of request validation ([ApiController] turns them into 400s). Every request must at least use [Required].</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Dtos" && t.NameLike(@"Request$") && !t.IsGeneratedByCompiler
+where !t.IsUsing("System.ComponentModel.DataAnnotations.RequiredAttribute".AllowNoMatch())
+select t
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>DTO05: Every entity has {X}Response and {X}Request DTOs</Name>
+// <Description>An entity ships as exactly 4 files; the Dtos file must define both types (design contract section 1/3).</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Models" && t.IsClass && !t.IsGeneratedByCompiler
+where !Application.Types.Any(d => d.ParentNamespace.Name == "Backend.Dtos" && d.Name == t.Name + "Response")
+   || !Application.Types.Any(d => d.ParentNamespace.Name == "Backend.Dtos" && d.Name == t.Name + "Request")
+select t
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>DTO06: Request DTOs are mutable classes, not records</Name>
+// <Description>Requests are plain classes with public setters (model binding); records are reserved for responses.</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Dtos" && t.NameLike(@"Request$") && !t.IsGeneratedByCompiler
+where t.Methods.Any(m => m.SimpleName == "get_EqualityContract")
+   || !t.Methods.Any(m => m.IsPropertySetter && m.IsPublic)
+select t
+]]></Query>
+
+ </Group>
+
+ <Group Name="4. Data / EF Core (Backend.Data)" Active="True" ShownInReport="False">
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>EF01: Configuration classes implement IEntityTypeConfiguration and end with 'Configuration'</Name>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Data.Configurations" && !t.IsGeneratedByCompiler
+where !t.NameLike(@"Configuration$")
+   || !t.Implement("Microsoft.EntityFrameworkCore.IEntityTypeConfiguration<TEntity>".AllowNoMatch())
+select t
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>EF02: Every entity has a {X}Configuration class</Name>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Models" && t.IsClass && !t.IsGeneratedByCompiler
+where !Application.Types.Any(c =>
+    c.ParentNamespace.Name == "Backend.Data.Configurations" && c.Name == t.Name + "Configuration")
+select t
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>EF03: Every entity has a DbSet property on AppDbContext</Name>
+// <Description>Expected name: pluralized entity name (y -> ies, otherwise + s), e.g. Persons, Categories.</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Models" && t.IsClass && !t.IsGeneratedByCompiler
+let ctx = Application.Types.SingleOrDefault(x => x.FullName == "Backend.Data.AppDbContext")
+let plural = t.Name.EndsWith("y") ? t.Name.Substring(0, t.Name.Length - 1) + "ies" : t.Name + "s"
+where ctx != null && !ctx.Methods.Any(m => m.SimpleName == "get_" + plural)
+select new { t, plural }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>EF04: AppDbContext is the only DbContext</Name>
+warnif count > 0
+from t in Application.Types
+where t.DeriveFrom("Microsoft.EntityFrameworkCore.DbContext".AllowNoMatch())
+   && t.FullName != "Backend.Data.AppDbContext"
+select t
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>EF05: OnModelCreating applies configurations from assembly</Name>
+// <Description>OnModelCreating = base call + ApplyConfigurationsFromAssembly only; per-entity mapping never lives in the context.</Description>
+warnif count > 0
+from t in Application.Types
+where t.FullName == "Backend.Data.AppDbContext"
+let omc = t.Methods.SingleOrDefault(m => m.SimpleName == "OnModelCreating")
+where omc == null
+   || !omc.MethodsCalled.Any(c => c.SimpleName == "ApplyConfigurationsFromAssembly")
+select t
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>EF06: AppDbContext has exactly one options constructor</Name>
+// <Description>Single public constructor taking DbContextOptions<AppDbContext>; no OnConfiguring-based setup.</Description>
+warnif count > 0
+from t in Application.Types
+where t.FullName == "Backend.Data.AppDbContext"
+let ctors = t.Constructors.Where(c => !c.IsStatic)
+where ctors.Count() != 1
+   || ctors.Any(c => c.NbParameters != 1)
+   || t.Methods.Any(m => m.SimpleName == "OnConfiguring")
+select new { t, ctors }
+]]></Query>
+
+ </Group>
+
+ <Group Name="5. Controllers and API (Backend.Controllers)" Active="True" ShownInReport="False">
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>API01: Controller shape - *Controller, ControllerBase, [ApiController], [Route]</Name>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Controllers" && t.IsClass && !t.IsGeneratedByCompiler
+where !t.NameLike(@"Controller$")
+   || !t.DeriveFrom("Microsoft.AspNetCore.Mvc.ControllerBase".AllowNoMatch())
+   || !t.HasAttribute("Microsoft.AspNetCore.Mvc.ApiControllerAttribute".AllowNoMatch())
+   || !t.HasAttribute("Microsoft.AspNetCore.Mvc.RouteAttribute".AllowNoMatch())
+select t
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>API02: Every entity has a {Xs}Controller</Name>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Models" && t.IsClass && !t.IsGeneratedByCompiler
+let plural = t.Name.EndsWith("y") ? t.Name.Substring(0, t.Name.Length - 1) + "ies" : t.Name + "s"
+where !Application.Types.Any(c =>
+    c.ParentNamespace.Name == "Backend.Controllers" && c.Name == plural + "Controller")
+select new { t, plural }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>API03: Controllers depend only on AppDbContext</Name>
+// <Description>Exactly one constructor with exactly one parameter, and the controller uses AppDbContext. No other injected dependencies.</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Controllers" && t.IsClass && !t.IsGeneratedByCompiler
+let ctors = t.Constructors.Where(c => !c.IsStatic)
+where ctors.Count() != 1
+   || ctors.Any(c => c.NbParameters != 1)
+   || !t.IsUsing("Backend.Data.AppDbContext".AllowNoMatch())
+select new { t, ctors }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>API04: Controllers hold exactly one private readonly field</Name>
+// <Description>The single field is the injected AppDbContext (_context): private and only assigned in the constructor.</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Controllers" && t.IsClass && !t.IsGeneratedByCompiler
+let instanceFields = t.Fields.Where(f => !f.IsStatic)
+where instanceFields.Count() != 1 || instanceFields.Any(f => !f.IsPrivate || !f.IsImmutable)
+select new { t, instanceFields }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>API05: All actions are async (return Task)</Name>
+warnif count > 0
+from m in Application.Methods
+where m.ParentType.ParentNamespace.Name == "Backend.Controllers"
+   && !m.ParentType.IsGeneratedByCompiler && !m.IsGeneratedByCompiler
+   && m.IsPublic && !m.IsConstructor && !m.IsPropertyGetter && !m.IsPropertySetter
+where m.ReturnType == null || !m.ReturnType.Name.StartsWith("Task")
+select m
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>API06: No 'Async' suffix on methods</Name>
+warnif count > 0
+from m in Application.Methods
+where !m.IsGeneratedByCompiler && !m.ParentType.IsGeneratedByCompiler
+   && m.SimpleName.EndsWith("Async")
+select m
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>API07: Action names start with Get/Create/Update/Delete</Name>
+warnif count > 0
+from m in Application.Methods
+where m.ParentType.ParentNamespace.Name == "Backend.Controllers"
+   && !m.ParentType.IsGeneratedByCompiler && !m.IsGeneratedByCompiler
+   && m.IsPublic && !m.IsConstructor && !m.IsPropertyGetter && !m.IsPropertySetter
+where !m.NameLike(@"^(Get|Create|Update|Delete)")
+select m
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="False"><![CDATA[
+// <Name>API08: Controllers expose exactly the 5 CRUD actions</Name>
+// <Description>GetXs, GetX, CreateX, UpdateX, DeleteX - nothing more, nothing less. Sanctioned exception (design contract section 5): one optional Update{X}Position action for entities with manual ordering. Non-critical: further deviations need an explicit design decision.</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Controllers" && t.IsClass && !t.IsGeneratedByCompiler
+let actions = t.Methods.Where(m => m.IsPublic && !m.IsConstructor && !m.IsGeneratedByCompiler
+   && !m.IsPropertyGetter && !m.IsPropertySetter)
+let coreActions = actions.Where(m => !m.NameLike(@"^Update\w+Position"))
+where coreActions.Count() != 5 || actions.Count() > 6
+select new { t, actions }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>API09: No logging in controllers</Name>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Controllers" && !t.IsGeneratedByCompiler
+let logging = t.TypesUsed.Where(u => u.ParentNamespace != null
+   && u.ParentNamespace.Name.StartsWith("Microsoft.Extensions.Logging"))
+where logging.Any()
+select new { t, logging }
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>API10: No manual ModelState checks</Name>
+// <Description>[ApiController] already returns automatic 400s for invalid DataAnnotations; controllers must not read ModelState.</Description>
+warnif count > 0
+from m in Application.Methods
+where m.ParentType.ParentNamespace.Name == "Backend.Controllers"
+   && !m.IsGeneratedByCompiler && !m.ParentType.IsGeneratedByCompiler
+where m.MethodsCalled.Any(c => c.Name == "get_ModelState")
+select m
+]]></Query>
+
+  <Query Active="True" DisplayList="True" DisplayStat="True" DisplaySelectionView="False" IsCriticalRule="True"><![CDATA[
+// <Name>API11: No auth or API versioning</Name>
+// <Description>Design contract section 6: no auth, no versioning - do not introduce them unprompted.</Description>
+warnif count > 0
+from t in Application.Types
+where t.ParentNamespace.Name == "Backend.Controllers" && !t.IsGeneratedByCompiler
+where t.HasAttribute("Microsoft.AspNetCore.Authorization.AuthorizeAttribute".AllowNoMatch())
+   || t.HasAttribute("Asp.Versioning.ApiVersionAttribute".AllowNoMatch())
+   || t.Methods.Any(m => m.HasAttribute("Microsoft.AspNetCore.Authorization.AuthorizeAttribute".AllowNoMatch()))
+select t
+]]></Query>
+
+ </Group>
+
+</Queries>
