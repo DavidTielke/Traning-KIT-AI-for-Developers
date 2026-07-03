@@ -27,7 +27,7 @@ not as an afterthought or cleanup step.
 | Local variables                            | `lowerCamelCase`   | `personCount`                 |
 | Local constants                            | `lowerCamelCase`   | `maxAge`                      |
 | Parameters                                 | `lowerCamelCase`   | `categoryId`                  |
-| Async methods (returning `Task`/`Task<T>`) | suffix `Async`     | `LoadDataAsync()`             |
+| Async methods (returning `Task`/`Task<T>`) | **no** suffix (see §5) | `GetPersons()`            |
 
 Additional naming rules:
 - No Hungarian notation, no `m_` prefixes, no ALL_CAPS constants.
@@ -118,7 +118,8 @@ already conform so no squiggles appear:
 ## 5. Async & Error Handling
 
 - Async all the way: never block with `.Result` or `.Wait()`.
-- Methods returning `Task`/`Task<T>` end with `Async` (except controller actions, entry points, and test methods where the framework dictates names).
+- **No `Async` name suffix in this codebase** — the design contract (rule API06 in
+  `harness/_design.ndrules`) deviates from the common convention here and wins.
 - Do not catch exceptions without handling them; never swallow with an empty `catch`.
 
 ## 6. Comments & Documentation
@@ -130,34 +131,64 @@ already conform so no squiggles appear:
 
 ## 7. Compliance Example
 
-A fully conformant snippet in this codebase looks like:
+A fully conformant snippet in this codebase looks like (style shown on a controller,
+because the design contract `harness/_design.md` forbids service classes):
 
 ```csharp
+using Backend.Data;
+using Backend.Dtos;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace Backend.Services;
+namespace Backend.Controllers;
 
-public class PersonService
+[ApiController]
+[Route("api/persons")]
+public class PersonsController : ControllerBase
 {
-    private readonly AppDbContext context;
+    private readonly AppDbContext _context;
 
-    public PersonService(AppDbContext context)
+    public PersonsController(AppDbContext context)
     {
-        this.context = context;
+        _context = context;
     }
 
-    public async Task<IReadOnlyList<Person>> GetAdultsAsync(int minimumAge)
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<PersonResponse>>> GetPersons()
     {
-        var adults = await context.Persons
+        var persons = await _context.Persons
             .AsNoTracking()
-            .Where(p => p.Age >= minimumAge)
-            .OrderBy(p => p.Name)
+            .Include(p => p.Category)
+            .OrderBy(p => p.Id)
+            .Select(p => new PersonResponse(p.Id, p.Name, p.Age, p.CategoryId, p.Category.Name))
             .ToListAsync();
 
-        return adults;
+        return Ok(persons);
     }
 }
 ```
+
+## 8. Harness exceptions (checked via `harness/code_check.py`)
+
+Compliance is verified with ReSharper InspectCode; run it on the solution:
+`python harness/code_check.py code/backend/Backend.sln`. The following inspections
+are **deliberately disabled** in `code/backend/Backend.sln.DotSettings` — the
+solution team-shared layer that Rider/VS edit via "Save to team-shared" and that
+`code_check.py` mounts automatically via `--settings`. They fire on patterns the
+design contract (`harness/_design.md`) prescribes — do **not** "fix" code to
+satisfy them, and do not re-enable them:
+
+| Disabled inspection | Why it is a false positive here |
+|---|---|
+| `NotAccessedPositionalProperty.Global` | Response-DTO record properties are read by the JSON serializer only |
+| `UnusedAutoPropertyAccessor.Global` | Request-DTO setters are used by ASP.NET Core model binding |
+| `AutoPropertyCanBeMadeGetOnly.Global` | Same — request DTOs must stay settable |
+| `PropertyCanBeMadeInitOnly.Global` | Entities must be fully mutable (design rule ENT04; update actions mutate them) |
+| `ConvertToPrimaryConstructor` | Controllers/context use the explicit ctor + `private readonly` field pattern (design contract §5, rule API04) |
+
+Note on rule 5 (`Async` suffix): the design contract deliberately deviates from the
+ReSharper default — **no** `Async` suffix anywhere in this codebase (design rule API06).
+The design contract wins.
 
 ---
 

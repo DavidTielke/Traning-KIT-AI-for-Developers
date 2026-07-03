@@ -12,7 +12,7 @@ Create a full-stack web application with the following specifications:
 
 ```
 /code
-  /backend          → ASP.NET Core Web API (.NET 10.0)
+  /backend          → ASP.NET Core Web API (.NET 10.0) (with sln. - file)
   /frontend         → React + Vite SPA
 ```
 
