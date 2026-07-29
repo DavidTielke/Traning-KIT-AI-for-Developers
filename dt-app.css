@@ -1,0 +1,352 @@
+/* ============================================================
+   David Tielke — Business-App Reference Stylesheet
+   ------------------------------------------------------------
+   Token-driven, class-based. Editorial B2B admin surface:
+   sidebar navigation, dense sortable data tables, CRUD modals,
+   dashboard stat tiles. Derived from the "Geschäftsanwendung
+   Haustiere" build. Load this file, then apply the classes.
+
+   Load order:
+     1) this file (contains the @import for the webfonts)
+     2) your page markup
+
+   Signature gestures — keep them:
+     • Orange dot after every headline  → <span class="dt-dot">.</span>
+     • Green-clamped card (green top+bottom border, thin grey sides)
+     • JetBrains Mono ONLY for data markers (IDs, counts, ages, prices)
+     • Mostly ink-on-white; orange = action, green = structure/success
+     • No gradients, no glow, no decorative shadows
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  /* Color */
+  --dt-bg:          #ffffff;
+  --dt-panel:       #f2f2f2;
+  --dt-ink:         #2b2b2b;
+  --dt-muted:       #7a7a7a;
+  --dt-line:        #e5e5e5;
+  --dt-orange:      #f38a2c;
+  --dt-orange-soft: #fff3e5;
+  --dt-orange-dark: #e07620;
+  --dt-green:       #7cb342;
+  --dt-green-soft:  #ecf4dd;
+  --dt-error:       #c0392b;
+
+  /* Type */
+  --dt-font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --dt-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Radii */
+  --dt-radius-xs: 4px;   /* badges, section buttons */
+  --dt-radius-sm: 6px;   /* inputs, modal buttons */
+  --dt-radius-md: 8px;   /* standard cards */
+  --dt-radius-lg: 10px;  /* stat/summary cards, modal */
+  --dt-radius-xl: 12px;  /* modal container */
+
+  /* Shadows — the ONLY three that exist */
+  --dt-shadow-none: none;
+  --dt-shadow-card: 0 1px 2px rgba(0,0,0,0.02);
+  --dt-shadow-modal: 0 30px 100px rgba(0,0,0,0.4);
+}
+
+/* ---------- Base ---------- */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  background: var(--dt-panel);
+  color: var(--dt-ink);
+  font-family: var(--dt-font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+a { color: var(--dt-ink); text-decoration: none; transition: color 160ms; }
+a:hover { color: var(--dt-orange); }
+
+/* Signature punctuation */
+.dt-dot { color: var(--dt-orange); }   /* the orange headline period */
+.dt-acc { color: var(--dt-green); }    /* green clause punctuation */
+
+/* Kicker — uppercase orange label above every title */
+.dt-kicker {
+  font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--dt-orange);
+}
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+.dt-app { display: flex; min-height: 100vh; background: var(--dt-panel); }
+
+.dt-sidebar {
+  width: 266px; flex: 0 0 266px;
+  background: var(--dt-bg);
+  border-right: 1px solid var(--dt-line);
+  display: flex; flex-direction: column;
+  position: sticky; top: 0; height: 100vh;
+}
+.dt-sidebar__brand {
+  height: 88px; display: flex; align-items: center;
+  padding: 0 22px; border-bottom: 2px solid var(--dt-green);
+}
+.dt-sidebar__body { padding: 16px 14px; flex: 1; }
+.dt-sidebar__foot {
+  padding: 16px; border-top: 1px solid var(--dt-line);
+  display: flex; align-items: center; gap: 12px;
+}
+
+/* Brand wordmark */
+.dt-brand { font-weight: 700; font-size: 15px; letter-spacing: -0.2px; line-height: 1.35; }
+.dt-brand__slash { color: var(--dt-orange); }   /* // */
+.dt-brand__sep   { color: var(--dt-green); }     /* /  */
+.dt-brand__tag   { color: var(--dt-muted); font-weight: 600; }
+
+/* Navigation */
+.dt-nav { display: flex; flex-direction: column; gap: 4px; }
+.dt-nav__group-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--dt-orange); padding: 6px 12px 12px;
+}
+.dt-nav__item {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 11px 13px; border: none; border-radius: var(--dt-radius-md);
+  font-family: var(--dt-font-sans); font-size: 14px; font-weight: 600; letter-spacing: -0.1px;
+  cursor: pointer; text-align: left; background: transparent; color: var(--dt-ink);
+  transition: color 160ms, background 160ms;
+}
+.dt-nav__item:hover { background: var(--dt-panel); }
+.dt-nav__item.is-active { background: var(--dt-orange-soft); color: var(--dt-orange); }
+.dt-nav__count {
+  margin-left: auto; font-family: var(--dt-font-mono); font-size: 11px;
+  padding: 1px 8px; border-radius: 999px; background: var(--dt-panel); color: var(--dt-muted);
+}
+.dt-nav__item.is-active .dt-nav__count { background: var(--dt-orange); color: #fff; }
+
+/* User chip */
+.dt-avatar {
+  width: 38px; height: 38px; border-radius: 999px; flex: 0 0 auto;
+  background: var(--dt-orange-soft); color: var(--dt-orange);
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px;
+}
+
+/* Main column */
+.dt-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* Topbar — sticky, green bottom border */
+.dt-topbar {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--dt-bg); border-bottom: 2px solid var(--dt-green);
+  height: 88px; padding: 0 34px; display: flex; align-items: center; gap: 24px;
+}
+.dt-topbar__title {
+  font-size: 26px; font-weight: 700; letter-spacing: -0.8px; line-height: 1;
+}
+.dt-content { flex: 1; padding: 34px; overflow: auto; }
+
+/* ============================================================
+   CARDS — the green-clamped signature
+   ============================================================ */
+.dt-card {
+  background: var(--dt-bg);
+  border: 1px solid var(--dt-line);
+  border-top: 2px solid var(--dt-green);
+  border-bottom: 2px solid var(--dt-green);
+  border-radius: var(--dt-radius-md);
+}
+.dt-card--lg {
+  border-top-width: 3px; border-bottom-width: 3px;
+  border-radius: var(--dt-radius-lg);
+}
+.dt-card__pad { padding: 26px 28px; }
+
+/* Dashboard stat tile */
+.dt-stat { padding: 22px 24px; }
+.dt-stat__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.dt-stat__label { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--dt-muted); }
+.dt-stat__value { font-family: var(--dt-font-mono); font-size: 42px; font-weight: 500; line-height: 1; letter-spacing: -1px; }
+.dt-stat__sub { font-size: 12.5px; color: var(--dt-muted); margin-top: 8px; }
+
+/* Distribution bar */
+.dt-bar { height: 8px; background: var(--dt-panel); border-radius: 999px; overflow: hidden; }
+.dt-bar__fill { height: 100%; background: var(--dt-green); border-radius: 999px; }
+
+/* ============================================================
+   DATA TABLE
+   ============================================================ */
+.dt-tablecard { background: var(--dt-bg); border: 1px solid var(--dt-line);
+  border-top: 2px solid var(--dt-green); border-bottom: 2px solid var(--dt-green);
+  border-radius: var(--dt-radius-md); overflow: hidden; }
+.dt-tablecard__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 22px; border-bottom: 1px solid var(--dt-line);
+  font-size: 13.5px; color: var(--dt-muted);
+}
+.dt-table { width: 100%; border-collapse: collapse; }
+.dt-table th {
+  text-align: left; padding: 14px 20px; background: var(--dt-panel);
+  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--dt-muted);
+  user-select: none; white-space: nowrap; border-bottom: 1px solid var(--dt-line);
+}
+.dt-table th.is-sortable { cursor: pointer; }
+.dt-table th .dt-sort-ind { color: var(--dt-orange); margin-left: 5px; }
+.dt-table td { padding: 15px 20px; vertical-align: middle; border-bottom: 1px solid var(--dt-line); font-size: 14px; }
+.dt-table tbody tr { transition: background-color 160ms, opacity 160ms; }
+.dt-table tbody tr:hover { background: var(--dt-orange-soft); }
+.dt-table__num { text-align: right; }
+
+/* Cell text treatments */
+.dt-cell-mono   { font-family: var(--dt-font-mono); font-size: 13px; color: var(--dt-muted); }
+.dt-cell-strong { font-weight: 700; }
+.dt-cell-muted  { color: var(--dt-muted); }
+
+/* Badges & status pills (soft-tint bg only) */
+.dt-badge { display: inline-block; padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.dt-badge--green  { background: var(--dt-green-soft);  color: #5a8a2e; }
+.dt-badge--orange { background: var(--dt-orange-soft); color: var(--dt-orange-dark); }
+.dt-badge--neutral{ background: var(--dt-panel);       color: var(--dt-muted); }
+
+.dt-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; }
+.dt-status--green  { color: #5a8a2e; }
+.dt-status--orange { color: var(--dt-orange-dark); }
+.dt-status--muted  { color: var(--dt-muted); }
+
+/* Row action icon buttons */
+.dt-iconbtn {
+  width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--dt-line); background: var(--dt-bg); border-radius: var(--dt-radius-sm);
+  color: var(--dt-muted); cursor: pointer; transition: color 160ms, border-color 160ms;
+}
+.dt-iconbtn:hover { border-color: var(--dt-orange); color: var(--dt-orange); }
+.dt-iconbtn--danger:hover { border-color: var(--dt-error); color: var(--dt-error); }
+
+/* Reorder control: drag handle + stacked up/down arrows */
+.dt-reorder { display: inline-flex; align-items: center; gap: 8px; }
+.dt-reorder__grip { color: var(--dt-muted); display: inline-flex; cursor: grab; }
+.dt-reorder__grip:active { cursor: grabbing; }
+.dt-reorder__arrows { display: inline-flex; flex-direction: column; }
+.dt-reorder__arrow {
+  width: 22px; height: 15px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--dt-line); background: var(--dt-bg); color: var(--dt-muted); cursor: pointer;
+  transition: color 160ms, border-color 160ms;
+}
+.dt-reorder__arrow:first-child { border-radius: 5px 5px 0 0; border-bottom: none; }
+.dt-reorder__arrow:last-child  { border-radius: 0 0 5px 5px; }
+.dt-reorder__arrow:hover:not(:disabled) { border-color: var(--dt-orange); color: var(--dt-orange); }
+.dt-reorder__arrow:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Drag / flash states — apply to <tr> */
+.dt-row--dragging { opacity: 0.4; background: var(--dt-orange-soft); }
+.dt-row--flash { animation: dt-row-flash 480ms ease; }
+
+/* Empty state */
+.dt-empty { padding: 64px 24px; text-align: center; }
+.dt-empty__title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.dt-empty__hint { font-size: 13.5px; color: var(--dt-muted); }
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.dt-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--dt-font-sans); font-size: 14px; font-weight: 700; letter-spacing: -0.1px;
+  padding: 11px 18px; border-radius: var(--dt-radius-xs); border: 1px solid transparent;
+  cursor: pointer; white-space: nowrap; transition: background 160ms, color 160ms, border-color 160ms;
+}
+.dt-btn--primary { background: var(--dt-orange); color: #fff; }
+.dt-btn--primary:hover { background: var(--dt-orange-dark); }
+.dt-btn--secondary { background: var(--dt-bg); color: var(--dt-ink); border-color: var(--dt-line); font-weight: 600; }
+.dt-btn--secondary:hover { border-color: var(--dt-ink); }
+.dt-btn--danger { background: var(--dt-error); color: #fff; }
+.dt-btn--danger:hover { background: #a5312a; }
+.dt-btn--block { width: 100%; }
+.dt-btn--modal { border-radius: var(--dt-radius-sm); padding: 11px 22px; }
+
+/* ============================================================
+   FORMS
+   ============================================================ */
+.dt-form { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 14px; row-gap: 16px; }
+.dt-field--12 { grid-column: span 12; }
+.dt-field--6  { grid-column: span 6; }
+.dt-field--4  { grid-column: span 4; }
+.dt-field__label {
+  display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--dt-muted); margin-bottom: 7px;
+}
+.dt-input, .dt-select {
+  width: 100%; padding: 12px 14px; font-family: var(--dt-font-sans); font-size: 14px; color: var(--dt-ink);
+  background: var(--dt-bg); border: 1px solid var(--dt-line); border-radius: var(--dt-radius-sm);
+}
+.dt-input:focus, .dt-select:focus { outline: none; border-color: var(--dt-orange); }
+.dt-input.is-error, .dt-select.is-error { border-color: var(--dt-error); }
+.dt-field__error { font-size: 12px; color: var(--dt-error); margin-top: 6px; }
+
+/* Checkbox (custom square) */
+.dt-check {
+  width: 19px; height: 19px; flex: 0 0 auto; border-radius: var(--dt-radius-xs);
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--dt-line); background: var(--dt-bg); cursor: pointer;
+}
+.dt-check.is-checked { border-color: var(--dt-orange); background: var(--dt-orange); }
+
+/* ============================================================
+   MODAL & CONFIRM
+   ============================================================ */
+.dt-backdrop {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(20,22,26,0.55); backdrop-filter: blur(4px);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 56px 20px; overflow: auto; animation: dt-fade 160ms ease;
+}
+.dt-backdrop--center { align-items: center; }
+.dt-modal {
+  width: 520px; max-width: 100%; background: var(--dt-bg);
+  border-radius: var(--dt-radius-xl); box-shadow: var(--dt-shadow-modal);
+  animation: dt-pop 200ms cubic-bezier(.22,.61,.36,1);
+}
+.dt-modal--sm { width: 420px; padding: 30px; }
+.dt-modal__head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 24px 26px; border-bottom: 1px solid var(--dt-line);
+}
+.dt-modal__title { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; }
+.dt-modal__body { padding: 26px; }
+.dt-modal__foot {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 20px 26px; border-top: 1px solid var(--dt-line);
+  background: var(--dt-panel); border-radius: 0 0 var(--dt-radius-xl) var(--dt-radius-xl);
+}
+.dt-modal__close {
+  width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--dt-line); background: var(--dt-bg); border-radius: var(--dt-radius-sm);
+  color: var(--dt-muted); cursor: pointer; transition: color 160ms, border-color 160ms;
+}
+.dt-modal__close:hover { border-color: var(--dt-orange); color: var(--dt-orange); }
+
+/* Danger glyph tile (confirm dialog) */
+.dt-danger-tile {
+  width: 46px; height: 46px; border-radius: var(--dt-radius-lg);
+  background: #fbe9e7; color: var(--dt-error);
+  display: flex; align-items: center; justify-content: center; margin-bottom: 18px;
+}
+
+/* ============================================================
+   ANIMATIONS — reaction to user action only. 160ms color,
+   200-240ms transform. No scroll-triggered effects.
+   ============================================================ */
+@keyframes dt-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dt-pop  { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes dt-row-flash {
+  0%   { background: var(--dt-orange-soft); box-shadow: inset 3px 0 0 var(--dt-orange); }
+  100% { background: var(--dt-bg); box-shadow: inset 0 0 0 transparent; }
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 1024px) {
+  .dt-sidebar { width: 216px; flex-basis: 216px; }
+  .dt-content { padding: 24px; }
+}

@@ -1,0 +1,151 @@
+/* ============================================================
+   David Tielke — Colors & Type Tokens
+   ============================================================
+   Foundation tokens only. Components/spacing/layout live in dt-ui.css.
+   Load order:
+     1) colors_and_type.css   ← this file
+     2) dt-ui.css             ← components, layout, responsive
+   ============================================================ */
+
+/* ---------- Webfonts ----------
+   Plus Jakarta Sans + JetBrains Mono via Google Fonts.
+   No vendored .ttf/.woff2 files — see README "Fonts" section.
+*/
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  /* ---------- Color tokens (base) ---------- */
+  --dt-bg:          #ffffff;   /* page background, cards on panel sections */
+  --dt-panel:       #f2f2f2;   /* alternating section bg, modal inputs */
+  --dt-ink:         #2b2b2b;   /* body + headline color */
+  --dt-muted:       #7a7a7a;   /* secondary text, labels, footer links */
+  --dt-line:        #e5e5e5;   /* 1px borders, dividers, inputs */
+
+  --dt-orange:      #f38a2c;   /* primary accent: CTA, kicker, active nav, dot */
+  --dt-orange-soft: #fff3e5;   /* radio/checkbox active bg */
+  --dt-orange-dark: #e07620;   /* hover for primary CTA */
+
+  --dt-green:       #7cb342;   /* secondary accent: card top/bottom, checks, slashes */
+  --dt-green-soft:  #ecf4dd;   /* tag-badge background */
+
+  --dt-error:       #c0392b;   /* validation / error */
+
+  /* ---------- Semantic color aliases (Claude-friendly) ---------- */
+  --fg-1:           var(--dt-ink);
+  --fg-2:           var(--dt-muted);
+  --bg-1:           var(--dt-bg);
+  --bg-2:           var(--dt-panel);
+  --border-1:       var(--dt-line);
+  --accent-1:       var(--dt-orange);   /* primary */
+  --accent-2:       var(--dt-green);    /* secondary */
+
+  /* ---------- Type families ---------- */
+  --dt-font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont,
+                  "Segoe UI", Roboto, sans-serif;
+  --dt-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo,
+                  Consolas, monospace;
+
+  /* ---------- Type scale (raw) ---------- */
+  --dt-fs-h1-detail:   88px;   /* detail-page H1 */
+  --dt-fs-h1-home:     80px;   /* homepage H1 */
+  --dt-fs-h2-detail:   40px;
+  --dt-fs-h2-home:     56px;
+  --dt-fs-h3:          22px;
+  --dt-fs-card-title:  19px;
+  --dt-fs-lead:        20px;
+  --dt-fs-body:        15px;
+  --dt-fs-body-sm:     14px;
+  --dt-fs-card-desc:   13.5px;
+  --dt-fs-kicker:      11px;
+  --dt-fs-kicker-lg:   12px;
+  --dt-fs-label:       11px;
+  --dt-fs-mono-counter:12px;
+}
+
+/* ============================================================
+   Semantic element styles
+   Headlines END WITH AN ORANGE DOT — use <span class="dt-dot">.</span>
+   ============================================================ */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--dt-bg);
+  color: var(--dt-ink);
+  font-family: var(--dt-font-sans);
+  font-size: var(--dt-fs-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Semantic h1/h2/h3 mapped to the system scale.
+   The visual classes (.dt-h1 / .dt-h2 / .dt-h3) in dt-ui.css are the
+   canonical way to size headlines — but plain <h1>/<h2>/<h3> get a
+   sensible default here too. */
+h1 {
+  font-family: var(--dt-font-sans);
+  font-size: var(--dt-fs-h1-detail);
+  line-height: 0.98;
+  letter-spacing: -2.8px;
+  font-weight: 700;
+  margin: 0 0 24px;
+  color: var(--dt-ink);
+}
+h2 {
+  font-family: var(--dt-font-sans);
+  font-size: var(--dt-fs-h2-detail);
+  line-height: 1.08;
+  letter-spacing: -1.2px;
+  font-weight: 700;
+  margin: 0 0 16px;
+  color: var(--dt-ink);
+}
+h3 {
+  font-family: var(--dt-font-sans);
+  font-size: var(--dt-fs-h3);
+  line-height: 1.1;
+  letter-spacing: -0.4px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--dt-ink);
+}
+p {
+  font-family: var(--dt-font-sans);
+  font-size: var(--dt-fs-body);
+  line-height: 1.55;
+  color: var(--dt-ink);
+  margin: 0 0 14px;
+}
+small, .small {
+  font-size: var(--dt-fs-body-sm);
+  color: var(--dt-muted);
+}
+code, kbd, pre, samp {
+  font-family: var(--dt-font-mono);
+  font-size: 0.92em;
+  color: var(--dt-ink);
+}
+a {
+  color: var(--dt-ink);
+  text-decoration: none;
+  transition: color 160ms;
+}
+a:hover { color: var(--dt-orange); }
+
+/* Brand dot + green accent punctuation — utilities so plain HTML works.
+   Identical to .dt-dot / .dt-acc in dt-ui.css but available without the
+   full system loaded. */
+.dt-dot { color: var(--dt-orange); }
+.dt-acc { color: var(--dt-green); }
+
+/* Mobile defaults for semantic headlines (mirror dt-ui.css media queries) */
+@media (max-width: 1024px) {
+  h1 { font-size: 64px; letter-spacing: -2.4px; line-height: 1.05; }
+  h2 { font-size: 38px; }
+}
+@media (max-width: 640px) {
+  h1 { font-size: 40px; letter-spacing: -1.4px; line-height: 1.1; }
+  h2 { font-size: 30px; letter-spacing: -1px; }
+  h3 { font-size: 19px; }
+}
