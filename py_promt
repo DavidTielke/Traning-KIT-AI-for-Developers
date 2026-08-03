@@ -1,0 +1,12 @@
+Schreib ein python script: analyse_all.py welches analyse_code.py und analyse_swd.py aufruft
+- analyse_code.py
+	- ruft jb (jetbrains) mit der dotsettings aus dem harness auf
+	- parst die Ergebnisse von jb und gibt dieses als kompaktes json zurück mit allen relevanten Feldern
+- analyse_swd.py
+        - ruft NDepend auf (C:\Program Files (x86)\NDepend_2023.2.1.9701)
+	- parst das Ergebnis aus NDepend in json um mit allen relevanten Feldern
+
+das analyse_all.px soll als Quality gate fungieren, welches du am ende aufrufst, wenn du mit der Entwicklung fertig bist. danbach sollst du den code so lange korrigieren,
+bis alle gefundenen issues von jb un NDepend gefixt sind. daher gestalte das resultierende json so, dass du mit minimalen Infos (context Windows) alle fehler fixen kannst
+
+Achte bitte auf maximale ausführungsgeschwndigkeit, da das script bei jedem agentic Task am ende ausgeführt werden soll
