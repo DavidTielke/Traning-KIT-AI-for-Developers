@@ -6,9 +6,6 @@ Regeln, wie Anforderungen (Epics, Features, Stories, Akzeptanzkriterien) in dies
 
 ```
 specs/
-├── guidelines/
-│   ├── _Anforderungen.md     ← dieses Dokument
-│   └── _Architektur.md       ← architekturelle Grundregeln
 ├── E{n} {Epic-Name}/
 │   ├── _Datenstruktur.md     ← Entitäten des Epics
 │   ├── _Menüstruktur.md      ← Menü-Einordnung
