@@ -11,7 +11,11 @@ Regeln, wie aus einer groben Feature-Idee im Dialog eine ausgereifte, dokumentie
 
 ## Wann gilt dieser Prozess?
 
-Immer, wenn der Stakeholder eine neue Idee, ein neues Feature oder eine größere Änderung ins Spiel bringt, die noch nicht als Spec existiert. Der Product Owner startet dann **nicht** mit der Implementierung und schreibt **keine Specs**, sondern beginnt den Ideen-Dialog.
+Nur, wenn der Stakeholder den Prozess ausdrücklich verlangt — „lass uns an einer Idee arbeiten", „ich habe eine Idee", „ich will was Neues besprechen". Eine Idee ist ein großes, noch abstraktes Aufgabenpaket, bei dem Problem, Nutzen und Umfang erst im Gespräch entstehen müssen.
+
+Keine Idee ist eine konkret formulierte, umsetzbare Änderung — auch dann nicht, wenn es dafür noch keine Spec gibt, und auch dann nicht, wenn sie mehrere Dateien oder beide Schichten berührt. Beispiel: „Bau bei Haustieren eine Funktion ein, um die Reihenfolge zu ändern, analog zu Personen" ist ein Arbeitsauftrag, kein Ideen-Dialog. Solche Aufträge werden direkt umgesetzt; die Spec wird danach nachgezogen.
+
+Im Zweifel gilt: Wenn du die Aufgabe ohne Rückfrage umsetzen könntest, ist es keine Idee.
 
 ## Der Ideen-Dialog (verbindlich)
 
